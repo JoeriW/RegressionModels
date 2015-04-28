@@ -1,0 +1,88 @@
+---
+title: 'Automatic or manual? Impact on MPG: a case study'
+author: "JoeriW"
+date: "Sunday, April 26, 2015"
+output: word_document
+---
+
+## Executive summary
+
+In the following report we analyzed the impact of 10 aspects of automobile design on fuel consumption. In a first stage we showed, when only considering one variabel, that the transmission type (automatic or manual) seem to have an impact on the fuel consumption. However, in a second stage we included additional variables using a stepwise algorithm. Here we noticed that when holding weight, cylinders and horsepower constant that there is no signficiant difference between manual and automatic transmissions.
+
+## Data loading and processing
+
+The data used for this analysis is the "mtcars" data set.The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973-74 models). As part of the exploratory data analysis process we have a look at the structure of the data (cfr. figure 1) and observe that some variables are currertly categorized as numeric but that they are actually factor variables. This variables are: cyl, vs, am,gear and carb. Consequently we convert them to factor variables. Additionally we also give the transmission variable (am) more meaningfull level names as they are the core of our research questions.
+
+```{r}
+data(mtcars)
+mtcarsInit <- mtcars
+mtcars$cyl <- as.factor(mtcars$cyl);mtcars$vs <- as.factor(mtcars$vs);mtcars$am <- as.factor(mtcars$am)
+mtcars$gear <- as.factor(mtcars$gear);mtcars$carb <- as.factor(mtcars$carb)
+levels(mtcars$am) <- c("automatic","manual")
+```
+## Is an automatic or manual transmission better for MPG?
+
+The boxplot (cfr. figure 2) indicates that cars with manual transmissions have a higher miles per gallon than cars with automatic transmissions.
+Statistical inference seems to confirm this as the Welch two sample t test (cfr figure 3) allows us to **reject** the null hypothesis that there is no significant difference between the mean mpg for automatic transmission cars versus manual transmission cars (p-value is `r t.test(mpg~am,data=mtcars,var.equal=F)$p.value`)
+
+**note:** based on the difference in dispersion of data observed in the boxplot (figure 2) we assumed that variances of both populations are unequal when performing the t-test.
+
+## Quantify the MPG difference between automatic and manual transmissions
+###Model Selection
+In order to quantify the difference in mpg between automatic and manual transmissions we'll try to build different models and select the most accurate one.
+
+
+The first model is the most basic one, being 'mpg ~ am'. The results (cfr figure 4a) shows that on average, automatic cars have an mpg of `r round(summary(lm(mpg~am,data=mtcars))$coefficients[1],2)` whereas manual transmission cars have a mpg that is on average `r round(summary(lm(mpg~am,data=mtcars))$coefficients[1],2) + round(summary(lm(mpg~am,data=mtcars))$coefficients[2],2)`. The adjusted r² of our model is low however (`r summary(lm(mpg~am,data=mtcars))$adj.r.squared`). We'll search for a better model.
+
+For a second model we'll use a stepwise model to select the variables. The obtained model (cfr figure 4b) includes cylinder (cyl) and transmission type (am) as factor variables and weight (wt) and horsepower (hp) as confounding variables.The adjusted r² amounts to `r summary(step(lm(data = mtcars, mpg ~ .),trace=0,steps=10000))$adj.r.squared`. **Crucial note** is however that this model shows that when holding cylinder, weight and horsepower constant the difference in average mpg between automatic transmission cars and manual transmission cars becomes insignificant (p value of **0.20646** for the manual transmission variable)
+
+In order to select the most accurate model we performed an ANOVA analysis (cfr figure 5). The results show that p-value of the stepwise model is highly significant and that we can **reject** the null hypothesis that cyl, hp, wt don't increase the accuracy of the model.
+
+###Residual Analysis
+
+Looking at the residual analysis plots (cfr figure 6) we can say that
+
+1) based on the Residuals vs Fitted plot that the independence assumption seems to be respected as no specific pattern is visible
+2) based on the Normal Q-Q plot that the normality assumption seems to be respected as the points are close to the diagonal line
+3) based on the Scale-Location plot that variance seems to be constant, as the points seem to be randomly distributed
+4) based on the Residuals vs Leverage plot that no outliers seems to be present
+
+##Appendix
+#####figure 1: initial data structure
+```{r,echo=FALSE}
+str(mtcarsInit)
+```
+#####figure 2: boxplot automatic versus manual transmission
+```{r}
+boxplot(mtcars$mpg~mtcars$am,col=c("springgreen3","yellow3"),ylab="Milles/(US) gallon",main="Impact of transmission method on mpg ")
+```
+
+#####figure 3: Welch Two Sample t-test of difference in mean mpg for cars with automatic versus manual transmission
+
+```{r}
+t.test(mpg~am,data=mtcars,var.equal=F)
+```
+
+#####figure 4a: regression results - 1st model: mpg~am
+```{r}
+simpleM <- lm(mpg~am,data=mtcars)
+summary(simpleM)
+```
+
+#####figure 4b: regression results - 2nd model: stepwise algorithm
+```{r}
+AlgoM <- step(lm(data = mtcars, mpg ~ .),trace=0,steps=10000)
+summary(AlgoM)
+```
+
+#####figure 5: ANOVA
+```{r}
+anova(simpleM,AlgoM)
+```
+
+#####figure 6: diagnostic plot
+```{r}
+par(mfrow=c(2,2),mar=c(2,2,2,2))
+plot(AlgoM)
+```
+
